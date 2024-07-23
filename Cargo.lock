@@ -1692,6 +1692,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "955d28af4278de8121b7ebeb796b6a45735dc01436d898801014aced2773a3d6"
 
 [[package]]
+name = "ryu"
+version = "1.0.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f3cb5ba0dc43242ce17de99c180e96db90b235b8a9fdc9543c96d2209116bd9f"
+
+[[package]]
 name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1723,6 +1729,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bc76f558e0cbb2a839d37354c575f1dc3fdc6546b5be373ba43d95f231bf7c12"
 dependencies = [
  "serde_derive",
+]
+
+[[package]]
+name = "serde-json-core"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c9e1ab533c0bc414c34920ec7e5f097101d126ed5eac1a1aac711222e0bbb33"
+dependencies = [
+ "heapless 0.7.17",
+ "ryu",
+ "serde",
 ]
 
 [[package]]
@@ -1882,6 +1899,7 @@ name = "swe-firmware"
 version = "0.1.0"
 dependencies = [
  "aes",
+ "anyhow",
  "bleps",
  "cfg-if",
  "critical-section",
@@ -1923,6 +1941,8 @@ dependencies = [
  "p192",
  "p256",
  "portable-atomic",
+ "serde",
+ "serde-json-core",
  "sha2",
  "smart-leds",
  "smoltcp",

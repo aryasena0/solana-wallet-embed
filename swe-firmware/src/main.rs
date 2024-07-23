@@ -2,7 +2,10 @@
 #![no_main]
 
 mod ble;
+mod solutils;
 mod wifi;
+
+use core::mem::MaybeUninit;
 
 use embassy_executor::Spawner;
 use esp_backtrace as _;
@@ -27,9 +30,22 @@ macro_rules! mk_static {
     }};
 }
 
+#[global_allocator]
+static ALLOCATOR: esp_alloc::EspHeap = esp_alloc::EspHeap::empty();
+
+fn init_heap() {
+    const HEAP_SIZE: usize = 32 * 1024;
+    static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
+
+    unsafe {
+        ALLOCATOR.init(HEAP.as_mut_ptr() as *mut u8, HEAP_SIZE);
+    }
+}
+
 #[main]
 async fn main(spawner: Spawner) {
     esp_println::logger::init_logger_from_env();
+    init_heap();
 
     let peripherals = Peripherals::take();
     let peripherals_ptr = core::ptr::addr_of!(peripherals);

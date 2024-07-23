@@ -1,5 +1,5 @@
 [package]
-name = "swe-firmware"
+name    = "swe-firmware"
 version = "0.1.0"
 authors = ["sena <92186264+aryasena0@users.noreply.github.com>"]
 edition = "2021"
@@ -7,6 +7,7 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 aes                 = "0.8.4"
+anyhow              = { version = "1.0.86", default-features = false}
 bleps               = { git = "https://github.com/bjoernQ/bleps", package = "bleps", rev = "a5148d8ae679e021b78f53fd33afb8bb35d0b62e", features = [ "macros", "async"] }
 cfg-if              = "1.0.0"
 critical-section    = "1.1.2"
@@ -14,7 +15,7 @@ crypto-bigint       = { version = "0.5.5", default-features = false }
 elliptic-curve      = { version = "0.13.8", default-features = false, features = ["sec1"] }
 embassy-executor    = { version = "0.5.0", features = ["task-arena-size-40960"] }
 embassy-futures     = "0.1.1"
-embassy-net = { version = "0.4.0", features = [ "tcp", "udp", "dhcpv4", "medium-ethernet"] }
+embassy-net         = { version = "0.4.0", features = [ "tcp", "udp", "dhcpv4", "medium-ethernet"] }
 embassy-sync        = "0.6.0"
 embassy-time        = { version = "0.3.1", features = ["generic-queue-8"] }
 embassy-time-driver = { version = "0.1.0", optional = true }
@@ -53,19 +54,21 @@ smart-leds          = "0.4.0"
 smoltcp             = { version = "0.11.0", default-features = false, features = [ "medium-ethernet", "socket-raw"] }
 ssd1306             = "0.8.4"
 static_cell         = { version = "2.1.0", features = ["nightly"] }
+serde               = { version = "1.0.204", features = ["derive"], default-features = false }
+serde-json-core     = "0.5"
 usb-device          = "0.3.2"
 usbd-serial         = "0.2.2"
 
 [features]
-default = ["esp32c3", "wifi"]
-wifi = ["esp-wifi/wifi", "embedded-hal-02", "embedded-hal", "embassy-generic-timers", "opsram-2m"]
-ble = ["esp-wifi/ble", "embedded-hal-02", "embedded-hal", "embassy-generic-timers", "opsram-2m"]
-esp32c2 = ["esp-hal/esp32c2", "esp-backtrace/esp32c2", "esp-hal-embassy/esp32c2", "esp-println/esp32c2", "esp-storage/esp32c2", "esp-wifi/esp32c2", ]
-esp32c3 = ["esp-hal/esp32c3", "esp-backtrace/esp32c3", "esp-hal-embassy/esp32c3", "esp-println/esp32c3", "esp-storage/esp32c3", "esp-wifi/esp32c3", "esp-hal-smartled/esp32c3"]
-embedded-hal-02 = ["esp-hal/embedded-hal-02"]
-embedded-hal = ["esp-hal/embedded-hal"]
-embassy-generic-timers = ["embassy-time/generic-queue-8"]
-opsram-2m = ["esp-hal/opsram-2m"]
+default                   = ["esp32c3", "wifi"]
+wifi                      = ["esp-wifi/wifi", "embedded-hal-02", "embedded-hal", "embassy-generic-timers", "opsram-2m"]
+ble                       = ["esp-wifi/ble", "embedded-hal-02", "embedded-hal", "embassy-generic-timers", "opsram-2m"]
+esp32c2                   = ["esp-hal/esp32c2", "esp-backtrace/esp32c2", "esp-hal-embassy/esp32c2", "esp-println/esp32c2", "esp-storage/esp32c2", "esp-wifi/esp32c2", ]
+esp32c3                   = ["esp-hal/esp32c3", "esp-backtrace/esp32c3", "esp-hal-embassy/esp32c3", "esp-println/esp32c3", "esp-storage/esp32c3", "esp-wifi/esp32c3", "esp-hal-smartled/esp32c3"]
+embedded-hal-02           = ["esp-hal/embedded-hal-02"]
+embedded-hal              = ["esp-hal/embedded-hal"]
+embassy-generic-timers    = ["embassy-time/generic-queue-8"]
+opsram-2m                 = ["esp-hal/opsram-2m"]
 
 [profile.release]
 codegen-units    = 1
@@ -73,5 +76,5 @@ debug            = 2
 debug-assertions = false
 incremental      = false
 opt-level        = 3
-lto = 'fat'
+lto              = 'fat'
 overflow-checks  = false

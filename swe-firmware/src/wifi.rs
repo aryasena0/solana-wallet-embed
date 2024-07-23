@@ -1,6 +1,13 @@
+extern crate alloc;
+use crate::{mk_static, solutils::types::GetBalanceResponse};
+
 use embassy_executor::Spawner;
+use embassy_net::tcp::Error;
 use embassy_net::{tcp::TcpSocket, Config, Ipv4Address, Stack, StackResources};
 use embassy_time::{Duration, Timer};
+use embedded_io::ReadExactError;
+use embedded_io_async::Read;
+use embedded_io_async::Write;
 use esp_backtrace as _;
 use esp_hal::peripherals::Peripherals;
 use esp_println::println;
@@ -8,8 +15,8 @@ use esp_wifi::wifi::{
     ClientConfiguration, Configuration, WifiController, WifiDevice, WifiEvent, WifiStaDevice,
     WifiState,
 };
-
-use crate::mk_static;
+use log::{error, info};
+use serde_json_core::de::from_slice;
 
 #[embassy_executor::task]
 pub async fn wifi_task(
@@ -42,68 +49,105 @@ pub async fn wifi_task(
     let mut rx_buffer = [0; 4096];
     let mut tx_buffer = [0; 4096];
 
-    loop {
+    #[allow(unused_labels)]
+    'stack: loop {
         if stack.is_link_up() {
             break;
         }
         Timer::after(Duration::from_millis(500)).await;
     }
 
-    println!("Waiting to get IP address...");
-    loop {
+    info!("Waiting to get IP address...");
+    #[allow(unused_labels)]
+    'get_ip: loop {
         if let Some(config) = stack.config_v4() {
-            println!("Got IP: {}", config.address);
+            info!("Got IP: {}", config.address);
             break;
         }
         Timer::after(Duration::from_millis(500)).await;
     }
 
-    loop {
+    #[allow(unused_labels)]
+    'connect: loop {
         Timer::after(Duration::from_millis(1_000)).await;
 
         let mut socket = TcpSocket::new(stack, &mut rx_buffer, &mut tx_buffer);
-
         socket.set_timeout(Some(embassy_time::Duration::from_secs(10)));
 
-        let remote_endpoint = (Ipv4Address::new(142, 250, 185, 115), 80);
-        println!("connecting...");
+        // this is example endpoint
+        // let remote_endpoint = (Ipv4Address::new(142, 250, 185, 115), 80);
+        // this is a solana api devnet rpc node
+        // let remote_endpoint = (Ipv4Address::new(67, 209, 54, 90), 443);
+        // this is a solana api localnet rpc node
+        let remote_endpoint = (Ipv4Address::new(192, 168, 1, 7), 8899);
+
+        info!("connecting to {:?}", remote_endpoint);
         let r = socket.connect(remote_endpoint).await;
         if let Err(e) = r {
-            println!("connect error: {:?}", e);
+            info!("connect error: {:?}", e);
             continue;
         }
-        println!("connected!");
+        info!("connected!");
+
         let mut buf = [0; 1024];
-        loop {
-            use embedded_io_async::Write;
-            let r = socket
-                .write_all(b"GET / HTTP/1.0\r\nHost: www.mobile-j.de\r\n\r\n")
+
+        let get_token_account_balance_request = include_str!("../../request/get_balance.http");
+        let separator = b"\r\n\r\n";
+
+        'rw: loop {
+            Timer::after(Duration::from_millis(1_000)).await;
+
+            let write_result = socket
+                .write_all(get_token_account_balance_request.as_bytes())
                 .await;
-            if let Err(e) = r {
-                println!("write error: {:?}", e);
-                break;
-            }
-            let n = match socket.read(&mut buf).await {
-                Ok(0) => {
-                    println!("read EOF");
-                    break;
+
+            if let Err(e) = write_result {
+                error!("write error: {:?}", e);
+                if e != Error::ConnectionReset {
+                    break 'rw;
                 }
-                Ok(n) => n,
+            }
+
+            if let Err(e) = socket.read_exact(&mut buf).await {
+                error!("read error: {:?}", e);
+                if e != ReadExactError::Other(Error::ConnectionReset) {
+                    break 'rw;
+                }
+            }
+
+            let actual_length = buf.iter().position(|&x| x == 0).unwrap_or(buf.len());
+            let trimmed_buf = &buf[..actual_length];
+            let body_start = trimmed_buf
+                .windows(separator.len())
+                .position(|window| window == separator)
+                .map_or(0, |pos| pos + separator.len());
+            let body_bytes = &trimmed_buf[body_start..];
+
+            #[cfg(debug_assertions)]
+            {
+                if let Ok(body_str) = core::str::from_utf8(body_bytes) {
+                    println!("Body as JSON str: {}", body_str);
+                }
+            }
+
+            match from_slice::<GetBalanceResponse>(body_bytes) {
+                Ok((parsed_body, _)) => {
+                    println!("Parsed body: {:#?}", parsed_body);
+                }
                 Err(e) => {
-                    println!("read error: {:?}", e);
-                    break;
+                    error!("Failed to parse JSON: {:?}", e);
+                    break 'rw;
                 }
             };
-            println!("{}", core::str::from_utf8(&buf[..n]).unwrap());
         }
-        Timer::after(Duration::from_millis(3000)).await;
+        Timer::after(Duration::from_millis(3_000)).await;
     }
 }
 
 #[embassy_executor::task]
 async fn connection(mut controller: WifiController<'static>) {
-    println!("start connection task");
-    println!("Device capabilities: {:?}", controller.get_capabilities());
+    info!("start connection task");
+    info!("Device capabilities: {:?}", controller.get_capabilities());
 
     loop {
         if esp_wifi::wifi::get_wifi_state() == WifiState::StaConnected {
@@ -117,7 +161,7 @@ async fn connection(mut controller: WifiController<'static>) {
 
             let ssid = SSID.trim();
             let password = PASSWORD.trim();
-            println!("ssid: {} <> password: {}", ssid, password);
+            info!("ssid: {} <> password: {}", ssid, password);
 
             let ssid = SSID.try_into().unwrap();
             let password = PASSWORD.try_into().unwrap();
@@ -127,16 +171,16 @@ async fn connection(mut controller: WifiController<'static>) {
                 ..Default::default()
             });
             controller.set_configuration(&client_config).unwrap();
-            println!("Starting wifi");
+            info!("Starting wifi");
             controller.start().await.unwrap();
-            println!("Wifi started!");
+            info!("Wifi started!");
         }
-        println!("About to connect...");
+        info!("About to connect...");
 
         match controller.connect().await {
-            Ok(_) => println!("Wifi connected!"),
+            Ok(_) => info!("Wifi connected!"),
             Err(e) => {
-                println!("Failed to connect to wifi: {e:?}");
+                info!("Failed to connect to wifi: {e:?}");
                 Timer::after(Duration::from_millis(5000)).await
             }
         }

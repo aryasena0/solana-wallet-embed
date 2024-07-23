@@ -1,0 +1,15 @@
+POST / HTTP/1.1
+Host: 127.0.0.1:8899
+User-Agent: curl/8.2.1
+Accept: */*
+Content-Type: application/json
+Content-Length: 143
+
+
+  {
+    "jsonrpc": "2.0", "id": 1,
+    "method": "getBalance",
+    "params": [
+      "21ujaUcsWcSe1KnmCNfE7vps92kLCwQzghwswxRHjHQF"
+    ]
+  }
